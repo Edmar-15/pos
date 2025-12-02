@@ -1,0 +1,46 @@
+<?php
+
+use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\POSController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\PaymongoController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', [POSController::class, 'showPOS']);
+Route::get('/pos/category/{id}/products', [POSController::class, 'getProductsByCategory']);
+Route::post('/pos/complete-order', [POSController::class, 'completeOrder']);
+// PAYMONGO CHECKOUT
+Route::post('/pos/paymongo/create-checkout', [PaymongoController::class, 'createCheckout']);
+Route::get('/pos/paymongo/check-status/{checkoutId}', [PaymongoController::class, 'checkStatus']);
+
+
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+Route::middleware('guest')->group(function () {
+    Route::get('/register', [AuthController::class, 'showRegister'])->name('show.register');
+    Route::get('/login', [AuthController::class, 'showLogin'])->name('show.login');
+
+    Route::post('/register', [AuthController::class, 'register'])->name('register');
+    Route::post('/login', [AuthController::class, 'login'])->name('login');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', [POSController::class, 'showIndex'])->name('pos.index');
+    Route::get('/dashboard/data', [POSController::class, 'dashboardData'])->name('dashboard.data');
+    Route::get('/category', [POSController::class, 'showCategory'])->name('pos.category');
+    Route::get('/products', [POSController::class, 'showProducts'])->name('pos.products');
+    Route::get('/report/sales', [POSController::class, 'showReportSales'])->name('pos.report.sales');
+    Route::get('/report/product-analysis', [POSController::class, 'showProdAnal'])->name('pos.report.product.analysis');
+    Route::get('/report/profits-and-loss', [POSController::class, 'showGainsLoss'])->name('pos.report.profits');
+    Route::get('/sales/data', [POSController::class, 'getSalesData'])->name('sales.data');
+    Route::get('/report/product-info/data', [POSController::class, 'getProductInfo'])->name('product.info.data');
+    Route::get('/report/profit-loss/data', [POSController::class, 'getProfitLossData'])->name('profit.loss.data');
+
+    Route::get('/category/create', [CategoryController::class, 'create'])->name('show.create.category');
+    Route::get('category/{category}/edit', [CategoryController::class, 'edit'])->name('show.edit.category');
+
+    Route::get('/product/create', [ProductController::class, 'create'])->name('show.create.product');
+    Route::get('/products/show/{product}', [ProductController::class, 'showPage'])->name('products.showPage');
+    Route::get('/products/{product}/edit', [ProductController::class, 'editPage'])->name('products.editPage');
+});
