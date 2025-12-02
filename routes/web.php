@@ -6,6 +6,8 @@ use App\Http\Controllers\POSController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PaymongoController;
 use Illuminate\Support\Facades\Route;
+use App\Models\Order;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 Route::get('/', [POSController::class, 'showPOS']);
 Route::get('/pos/category/{id}/products', [POSController::class, 'getProductsByCategory']);
@@ -13,7 +15,21 @@ Route::post('/pos/complete-order', [POSController::class, 'completeOrder']);
 // PAYMONGO CHECKOUT
 Route::post('/pos/paymongo/create-checkout', [PaymongoController::class, 'createCheckout']);
 Route::get('/pos/paymongo/check-status/{checkoutId}', [PaymongoController::class, 'checkStatus']);
+Route::post('/pos/paymongo/finalize/{checkoutId}', [PaymongoController::class, 'finalizePaidOrder']);
+Route::get('/payment-success', [PaymongoController::class, 'paymentSuccess']);
 
+Route::get('/orders/{id}/receipt', function ($id) {
+    $order = Order::findOrFail($id);
+
+    $items = $order->cart_items;
+
+    $pdf = Pdf::loadView('receipt.pdf', [
+        'order' => $order,
+        'items' => $items,
+    ])->name('receipt.download');
+
+    return $pdf->download('receipt-'.$order->id.'.pdf');
+});
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 

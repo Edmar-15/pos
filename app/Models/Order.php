@@ -6,17 +6,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
 {
-    // Fillable fields — allow mass assignment
     protected $fillable = [
-        'order_number',
-        'cart',
-        'total',
-        'status',
-        'paymongo_link_id',
+        'user_id',
+        'cart_items',   // JSON of items before checkout
+        'total_amount',
+        'checkout_id',
+        'status'
     ];
 
-    // Cast cart to array automatically
     protected $casts = [
-        'cart' => 'array',
+        'cart_items' => 'array'
     ];
 }

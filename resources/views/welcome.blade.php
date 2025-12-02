@@ -226,118 +226,116 @@
                 }
             });
 
-            // COMPLETE ORDER (replace previous handler)
             completeBtn.addEventListener('click', () => {
-    if (Object.keys(cart).length === 0) return alert("Cart is empty!");
+            if (Object.keys(cart).length === 0) return alert("Cart is empty!");
 
-    const cartArray = Object.values(cart).map(item => ({
-        id: item.id,
-        name: item.name,
-        sell_price: item.sell_price,
-        stock: item.stock,
-        quantity: item.quantity
-    }));
+            const cartArray = Object.values(cart).map(item => ({
+                id: item.id,
+                name: item.name,
+                sell_price: item.sell_price,
+                stock: item.stock,
+                quantity: item.quantity
+            }));
 
-    const payload = {
-        cart: cartArray,
-        payment_method: paymentMethod.value
-    };
+            const payload = {
+                cart: cartArray,
+                payment_method: paymentMethod.value
+            };
 
-    // ----------------------------------------------------
-    // ✅ 1. If CASH → same old flow
-    // ----------------------------------------------------
-    if (paymentMethod.value === 'cash') {
-        fetch(`${baseUrl}/pos/complete-order`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(async res => {
-            const text = await res.text();
-            try { return JSON.parse(text); } catch { throw new Error(text); }
-        })
-        .then(data => {
-            if (data.status === 'success') {
-                alert('Order completed successfully!');
-                Object.keys(cart).forEach(k => delete cart[k]);
-                renderCart();
+            if (paymentMethod.value === 'cash') {
+                fetch(`${baseUrl}/pos/complete-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                })
+                .then(async res => {
+                    const text = await res.text();
+                    try { return JSON.parse(text); } catch { throw new Error(text); }
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert('Order completed successfully!');
+                        Object.keys(cart).forEach(k => delete cart[k]);
+                        renderCart();
 
-                productGrid.style.display = 'none';
-                categoryTiles.style.display = 'grid';
-                backBtn.style.display = 'none';
-                searchBar.value = '';
+                        productGrid.style.display = 'none';
+                        categoryTiles.style.display = 'grid';
+                        backBtn.style.display = 'none';
+                        searchBar.value = '';
+                    }
+                })
+                .catch(err => alert("Error: " + err.message));
+
+                return;
             }
-        })
-        .catch(err => alert("Error: " + err.message));
 
-        return;
-    }
-
-    // ----------------------------------------------------
-    // ✅ 2. If PayMongo → Create Checkout + Poll
-    // ----------------------------------------------------
-    fetch(`${baseUrl}/pos/paymongo/create-checkout`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-TOKEN': csrfToken
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data.checkout_url) {
-            alert("Error creating PayMongo checkout!");
-            return;
-        }
-
-        window.open(data.checkout_url, "_blank");
-
-        // ⏳ Start polling
-        pollPayment(data.checkout_id);
-    });
-});
-
-// ----------------------------------------------------
-// ⏳ Polling function
-// ----------------------------------------------------
-function pollPayment(checkoutId) {
-    let interval = setInterval(() => {
-        fetch(`${baseUrl}/pos/paymongo/check-status/${checkoutId}`)
+            fetch(`${baseUrl}/pos/paymongo/create-checkout`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify(payload)
+            })
             .then(res => res.json())
             .then(data => {
-                console.log("Polling status:", data.status);
-
-                if (data.status === 'paid') {
-                    clearInterval(interval);
-                    alert("Payment successful!");
-
-                    // Clear cart
-                    Object.keys(cart).forEach(k => delete cart[k]);
-                    renderCart();
-
-                    productGrid.style.display = 'none';
-                    categoryTiles.style.display = 'grid';
-                    backBtn.style.display = 'none';
-                    searchBar.value = '';
+                if (!data.checkout_url) {
+                    alert("Error creating PayMongo checkout!");
+                    return;
                 }
 
-                if (data.status === 'failed' || data.status === 'expired') {
-                    clearInterval(interval);
-                    alert("Payment failed or expired");
-                }
-            })
-            .catch(err => {
-                clearInterval(interval);
-                console.error("Polling error", err);
+                window.open(data.checkout_url, "_blank");
+
+                pollPayment(data.checkout_id);
             });
+        });
 
-    }, 3000); // Poll every 3 seconds
-}
+        function pollPayment(checkoutId) {
+            let interval = setInterval(() => {
+                fetch(`${baseUrl}/pos/paymongo/check-status/${checkoutId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        console.log("Polling status:", data.status);
 
+                        if (data.status === 'succeeded') {
+                            clearInterval(interval);
+
+                            fetch(`${baseUrl}/pos/paymongo/finalize/${checkoutId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken
+                                }
+                            })
+                            .then(res => res.json())
+                            .then(finalizeData => {
+                                alert(finalizeData.message || "Order finalized!");
+                                
+                                Object.keys(cart).forEach(k => delete cart[k]);
+                                renderCart();
+                                productGrid.style.display = 'none';
+                                categoryTiles.style.display = 'grid';
+                                backBtn.style.display = 'none';
+                                searchBar.value = '';
+                            })
+                            .catch(err => console.error("Finalize error:", err));
+                        }
+
+                        if (data.status === 'failed' || data.status === 'expired') {
+                            clearInterval(interval);
+                            alert("Payment failed or expired");
+                        }
+                    })
+                    .catch(err => {
+                        clearInterval(interval);
+                        console.error("Polling error", err);
+                    });
+
+            }, 3000);
+        }
 
     });
     </script>
