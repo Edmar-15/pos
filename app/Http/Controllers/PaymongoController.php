@@ -12,9 +12,6 @@ use App\Models\Product;
 
 class PaymongoController extends Controller
 {
-    // ----------------------
-    // 1. CREATE CHECKOUT SESSION
-    // ----------------------
     public function createCheckout(Request $request)
     {
         $cartItems = $request->cart;
@@ -57,9 +54,6 @@ class PaymongoController extends Controller
 
         $data = $response->json()['data'];
 
-        // ----------------------
-        // SAVE PENDING ORDER
-        // ----------------------
         Order::create([
             'user_id' => null,
             'cart_items' => $cartItems,
@@ -74,9 +68,6 @@ class PaymongoController extends Controller
         ];
     }
 
-    // ----------------------
-    // 2. POLL CHECKOUT STATUS
-    // ----------------------
     public function checkStatus($checkoutId)
     {
         $secretKey = base64_encode(env('PAYMONGO_SECRET') . ":");
@@ -94,9 +85,6 @@ class PaymongoController extends Controller
         return ['status' => $status];
     }
 
-    // ----------------------
-    // 3. FINALIZE PAID ORDER
-    // ----------------------
     public function finalizePaidOrder(Request $request, $checkoutId)
     {
         $order = Order::where('checkout_id', $checkoutId)
@@ -109,10 +97,9 @@ class PaymongoController extends Controller
 
         $cartItems = $order->cart_items;
 
-        // Insert each cart item as a separate row in sales table
         foreach ($cartItems as $item) {
             DB::table('sales')->insert([
-                'ordernumber' => 'ORD-' . strtoupper(Str::uuid()), // unique order number
+                'ordernumber' => 'ORD-' . strtoupper(Str::uuid()),
                 'productname' => $item['name'],
                 'price'       => $item['sell_price'],
                 'instock'     => $item['stock'],
@@ -140,47 +127,35 @@ class PaymongoController extends Controller
 
     public function paymentSuccess(Request $request)
     {
-        $checkoutId = $request->query('checkout_id');
-
-        if (!$checkoutId) {
-            return view('pos.payment-success')->with('message', 'Checkout ID missing.');
-        }
-
-        // Fetch the pending order
-        $order = Order::where('checkout_id', $checkoutId)
-                    ->where('status', 'pending')
+        $order = Order::where('status', 'paid')
+                    ->latest()
                     ->first();
 
         if (!$order) {
-            return view('pos.payment-success')->with('message', 'Order already processed or not found.');
+            return view('pos.payment-success', [
+                'message' => 'No pending order found.'
+            ]);
         }
 
-        // ----------------------
-        // POLL PAYMONGO TO CONFIRM PAYMENT
-        // ----------------------
+        $checkoutId = $order->checkout_id;
+
         $secretKey = base64_encode(env('PAYMONGO_SECRET') . ":");
 
         $response = Http::withHeaders([
             'Authorization' => "Basic {$secretKey}"
-        ])->get("https://api.paymongo.com/v1/checkout_sessions/{$checkoutId}");
+        ])->get("https://api.paymongo.com/v1/checkout_sessions/$checkoutId");
 
         if (!$response->successful()) {
-            return view('pos.payment-success')->with('message', 'Could not verify payment status.');
+            return view('pos.payment-success', ['message' => 'Could not verify payment status.']);
         }
 
         $status = $response->json()['data']['attributes']['payment_intent']['attributes']['status'] ?? null;
 
         if ($status !== 'succeeded') {
-            // Payment is not completed yet
-            return view('pos.payment-success')->with('message', 'Payment not completed yet. Please wait.');
+            return view('pos.payment-success', ['message' => 'Payment not completed yet.']);
         }
 
-        // ----------------------
-        // PAYMENT CONFIRMED → MOVE TO SALES TABLE
-        // ----------------------
-        $cartItems = $order->cart_items;
-
-        foreach ($cartItems as $item) {
+        foreach ($order->cart_items as $item) {
             DB::table('sales')->insert([
                 'ordernumber' => Str::upper(Str::random(10)),
                 'productname' => $item['name'],
@@ -196,6 +171,11 @@ class PaymongoController extends Controller
         $order->status = 'paid';
         $order->save();
 
-        return redirect()->route('receipt.download', ['id' => $order->id]);
+        return view('pos.payment-success', [
+            'message' => 'Payment successful!',
+            'order' => $order,
+            'items' => $order->cart_items,
+            'receiptUrl' => route('receipt.download', ['id' => $order->id])
+        ]);
     }
 }

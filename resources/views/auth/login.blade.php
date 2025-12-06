@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS System - Login</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
 </head>
 <body class="bg-linear-to-br from-blue-100 to-blue-300 flex items-center justify-center h-screen">
     <main class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
@@ -36,6 +37,8 @@
                     class="bg-blue-600 text-white font-semibold py-2 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 mt-2">
                 Login
             </button>
+
+            <a href="{{ route('password.request') }}" class="text-blue-600 font-semibold hover:underline">Forgot Password?</a>
 
             <!-- Errors -->
             @if ($errors->any())

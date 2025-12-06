@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS|Sales Report</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
 </head>
 <body class="flex h-screen bg-gray-100">
     <aside class="sidebar" id="sidebar">
@@ -28,6 +29,10 @@
             <a href="{{ route('pos.products') }}" class="menu-item">
                 <span class="icon"><i class="bi bi-boxes"></i></span>
                 <span class="text">Products</span>
+            </a>
+            <a href="{{ route('show.logs') }}" class="menu-item">
+                <span class="icon"><i class="bi bi-clipboard"></i></span>
+                <span class="text">Logs</span>
             </a>
             <button class="menu-item w-full text-left active" id="dropdown">
                 <span class="icon"><i class="bi bi-graph-down"></i></span>
@@ -102,83 +107,101 @@
                     </thead>
                     <tbody id="salesReportTableBody"></tbody>
                 </table>
+                <div id="paginationControls" class="flex justify-center mt-2 gap-2 py-2"></div>
             </div>
             
         </div>
     </main>
 
-<script>
-    const sidebar = document.getElementById('sidebar');
+    <script>
+        const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('toggleBtn');
         const logo = document.getElementById('logo');
 
+        // Sidebar toggle
         toggleBtn.addEventListener('click', () => {
             sidebar.classList.toggle('sidebar-collapsed');
             logo.classList.toggle('logoNone');
         });
 
+        // Dropdown menu
         const dropdown = document.getElementById('dropdown');
         const droplist = document.getElementById('droplist');
-
         dropdown.addEventListener('click', () => {
             droplist.classList.toggle('hidden');
         });
 
-        // Get references
+        // Inputs
         const startDateInput = document.getElementById('startDate');
         const endDateInput = document.getElementById('endDate');
         const resetBtn = document.getElementById('resetBtn');
 
-        // Fetch data function (already supports optional start/end)
-        function fetchSalesData(start = '', end = '') {
-            let url = "{{ route('sales.data') }}";
+        // PAGINATED fetch function
+        function fetchSalesData(start = '', end = '', page = 1) {
+            let url = "{{ route('sales.data') }}?page=" + page;
             const params = new URLSearchParams();
 
             if(start) params.append('start', start);
             if(end) params.append('end', end);
 
-            if(params.toString()) url += `?${params.toString()}`;
+            url += "&" + params.toString();
 
             fetch(url)
-            .then(response => response.json())
-            .then(data => {
-                const tableBody = document.getElementById('salesReportTableBody');
-                tableBody.innerHTML = '';
+                .then(res => res.json())
+                .then(data => {
+                    const tableBody = document.getElementById('salesReportTableBody');
+                    const pagination = document.getElementById('paginationControls');
 
-                data.forEach(sale => {
-                    const row = document.createElement('tr');
-                    row.classList.add('border-b');
+                    tableBody.innerHTML = '';
 
-                    row.innerHTML = `
-                        <td class="p-3">${sale.ordernumber}</td>
-                        <td class="p-3">${sale.productname}</td>
-                        <td class="p-3">${sale.price}</td>
-                        <td class="p-3">${sale.instock}</td>
-                        <td class="p-3">${sale.sold}</td>
-                        <td class="p-3">${sale.date}</td>
+                    data.data.forEach(sale => {
+                        const row = document.createElement('tr');
+                        row.classList.add('border-b');
+
+                        row.innerHTML = `
+                            <td class="p-3">${sale.ordernumber}</td>
+                            <td class="p-3">${sale.productname}</td>
+                            <td class="p-3">${sale.price}</td>
+                            <td class="p-3">${sale.instock}</td>
+                            <td class="p-3">${sale.sold}</td>
+                            <td class="p-3">${sale.date}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+
+                    pagination.innerHTML = `
+                        <button 
+                            ${data.prev_page_url ? '' : 'disabled'}
+                            onclick="fetchSalesData('${start}', '${end}', ${data.current_page - 1})"
+                            class="px-4 py-2 bg-gray-300 rounded disabled:opacity-50">
+                            Previous
+                        </button>
+
+                        <span class="px-4 py-2">Page ${data.current_page} of ${data.last_page}</span>
+
+                        <button
+                            ${data.next_page_url ? '' : 'disabled'}
+                            onclick="fetchSalesData('${start}', '${end}', ${data.current_page + 1})"
+                            class="px-4 py-2 bg-gray-300 rounded disabled:opacity-50">
+                            Next
+                        </button>
                     `;
-
-                    tableBody.appendChild(row);
-                });
-            })
-            .catch(error => console.error('Error fetching sales data:', error));
+                })
+                .catch(err => console.error('Error:', err));
         }
 
-        // Dynamic date filtering
+        // Filter changes → go back to page 1
         [startDateInput, endDateInput].forEach(input => {
             input.addEventListener('input', () => {
-                const start = startDateInput.value;
-                const end = endDateInput.value;
-
-                fetchSalesData(start, end);
+                fetchSalesData(startDateInput.value, endDateInput.value, 1);
             });
         });
 
-        // Reset button click
+        // Reset filters
         resetBtn.addEventListener('click', () => {
             startDateInput.value = '';
             endDateInput.value = '';
-            fetchSalesData(); // reload all data
+            fetchSalesData('', '', 1);
         });
 
         // Initial load

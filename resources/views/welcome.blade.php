@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS System</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
     <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 
@@ -251,13 +252,17 @@
                     },
                     body: JSON.stringify(payload)
                 })
-                .then(async res => {
-                    const text = await res.text();
-                    try { return JSON.parse(text); } catch { throw new Error(text); }
-                })
+                .then(res => res.json())
                 .then(data => {
                     if (data.status === 'success') {
                         alert('Order completed successfully!');
+
+                        // Open receipt in new tab
+                        if (data.receiptUrl) {
+                            window.open(data.receiptUrl, '_blank');
+                        }
+
+                        // Clear cart
                         Object.keys(cart).forEach(k => delete cart[k]);
                         renderCart();
 
@@ -265,6 +270,8 @@
                         categoryTiles.style.display = 'grid';
                         backBtn.style.display = 'none';
                         searchBar.value = '';
+                    } else {
+                        alert('Error completing order: ' + (data.error || 'Unknown'));
                     }
                 })
                 .catch(err => alert("Error: " + err.message));

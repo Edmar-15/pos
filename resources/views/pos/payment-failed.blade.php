@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Payment Failed</title>
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
 </head>
 <body>
     <h1>Payment Failed or Canceled</h1>

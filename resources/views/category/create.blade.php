@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Category</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body class="flex h-screen bg-gray-100">
     <aside class="sidebar" id="sidebar">
@@ -28,6 +30,10 @@
             <a href="{{ route('pos.products') }}" class="menu-item">
                 <span class="icon"><i class="bi bi-boxes"></i></span>
                 <span class="text">Products</span>
+            </a>
+            <a href="{{ route('show.logs') }}" class="menu-item">
+                <span class="icon"><i class="bi bi-clipboard"></i></span>
+                <span class="text">Logs</span>
             </a>
             <button class="menu-item w-full text-left" id="dropdown">
                 <span class="icon"><i class="bi bi-graph-down"></i></span>
@@ -86,9 +92,23 @@
         
     </main>
     <script>
-        document.getElementById('addCategoryBtn').addEventListener('click', function() {
-            let name = document.getElementById('categoryName').value.trim();
-            if (!name) { alert("Category name is required"); return; }
+        const btn = document.getElementById('addCategoryBtn');
+        const input = document.getElementById('categoryName');
+
+        btn.addEventListener('click', function() {
+
+            // Prevent double click
+            if (btn.disabled) return;
+
+            let name = input.value.trim();
+            if (!name) { 
+                alert("Category name is required"); 
+                return; 
+            }
+
+            // Disable button & show loading state
+            btn.disabled = true;
+            btn.innerText = "Adding...";
 
             fetch("{{ route('categories.store') }}", {
                 method: 'POST',
@@ -101,10 +121,17 @@
             })
             .then(res => res.json())
             .then(data => {
-                // Redirect back to category page
                 window.location.href = "{{ route('pos.category') }}";
             })
-            .catch(err => console.error(err));
+            .catch(err => {
+                console.error(err);
+                alert("Something went wrong.");
+
+                // Re-enable button if request failed
+                btn.disabled = false;
+                btn.innerText = "Add Category";
+            });
+
         });
         const sidebar = document.getElementById('sidebar');
         const toggleBtn = document.getElementById('toggleBtn');

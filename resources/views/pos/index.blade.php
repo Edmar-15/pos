@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS | Dashboard</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
     <!-- Chart.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -30,6 +30,10 @@
         <a href="{{ route('pos.products') }}" class="menu-item">
             <span class="icon"><i class="bi bi-boxes"></i></span>
             <span class="text">Products</span>
+        </a>
+        <a href="{{ route('show.logs') }}" class="menu-item">
+            <span class="icon"><i class="bi bi-clipboard"></i></span>
+            <span class="text">Logs</span>
         </a>
         <button class="menu-item w-full text-left" id="dropdown">
             <span class="icon"><i class="bi bi-graph-down"></i></span>
@@ -80,7 +84,7 @@
 
     <!-- Dashboard Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div class="p-4 bg-white rounded shadow">
+        <div id="lowStockCard" class="p-4 bg-white rounded shadow border-2">
             <p>Products <i>(low on stock)</i></p>
             <p>Items: <span id="lowStockCount">0</span></p>
         </div>
@@ -136,6 +140,15 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('dailyPurchase').textContent = data.dailyPurchase;
         document.getElementById('dailySales').textContent = parseFloat(data.dailySales).toFixed(2);
         document.getElementById('monthlySales').textContent = parseFloat(data.monthlySales).toFixed(2);
+
+        const lowStockCard = document.getElementById('lowStockCard');
+        if (data.lowStock > 0) {
+            lowStockCard.classList.add("border-red-600");
+            lowStockCard.classList.remove("border-white");
+        } else {
+            lowStockCard.classList.remove("border-red-600");
+            lowStockCard.classList.add("border-white");
+        }
 
         // Bar chart - Monthly Sales
         const salesCtx = document.getElementById('salesChart').getContext('2d');

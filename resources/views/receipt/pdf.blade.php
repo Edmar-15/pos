@@ -25,9 +25,9 @@
     <table>
         @foreach($items as $item)
         <tr>
-            <td>{{ $item['name'] }} x {{ $item['qty'] }}</td>
+            <td>{{ $item['name'] }} x {{ $item['quantity'] }}</td>
             <td style="text-align:right;">
-                ₱{{ number_format($item['price'] * $item['qty'], 2) }}
+                ₱{{ number_format($item['sell_price'] * $item['quantity'], 2) }}
             </td>
         </tr>
         @endforeach

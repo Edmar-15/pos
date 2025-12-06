@@ -6,6 +6,7 @@ use App\Models\Category;
 use Illuminate\Http\Request;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\Order;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -47,9 +48,8 @@ class POSController extends Controller
         return response()->json($products);
     }
 
-    public function completeOrder(Request $request) {
-        Log::info('Incoming order request:', $request->all());
-
+    public function completeOrder(Request $request)
+    {
         $request->validate([
             'cart'              => 'required|array|min:1',
             'cart.*.name'       => 'required|string',
@@ -63,45 +63,59 @@ class POSController extends Controller
         $cart = $request->input('cart');
         $paymentMethod = $request->input('payment_method');
 
-        // ----------------------------
-        // 1) CASH: existing logic
-        // ----------------------------
         if ($paymentMethod === 'cash') {
+            DB::beginTransaction();
             try {
-                foreach ($cart as $item) {
-                    Log::info('Processing item (cash):', $item);
+                // 1️⃣ Create the order
+                $order = Order::create([
+                    'cart_items'     => $cart, // store as array, ensure $casts in Order model: 'cart_items' => 'array'
+                    'status'         => 'paid',
+                    'total_amount'   => array_sum(array_map(fn($i) => $i['sell_price'] * $i['quantity'], $cart)),
+                    'payment_method' => 'cash',
+                    'checkout_id'    => 'CASH-' . Str::upper(Str::random(8)), // fake checkout ID for cash
+                ]);
 
-                    $sale = Sale::create([
-                        'ordernumber' => 'ORD-' . strtoupper(Str::uuid()),
+                // 2️⃣ Insert sales and update stock
+                foreach ($cart as $item) {
+                    Sale::create([
+                        'ordernumber' => Str::upper(Str::random(10)),
                         'productname' => $item['name'],
-                        'price'       => floatval($item['sell_price']),
-                        'instock'     => intval($item['stock']),
-                        'sold'        => intval($item['quantity']),
+                        'price'       => $item['sell_price'],
+                        'instock'     => $item['stock'],
+                        'sold'        => $item['quantity'],
                         'date'        => now(),
                     ]);
-
-                    Log::info('Sale created successfully:', $sale->toArray());
 
                     $product = Product::find($item['id']);
                     if ($product) {
                         $product->stock = max($product->stock - $item['quantity'], 0);
                         $product->save();
-                        Log::info("Updated stock for product ID {$product->id}: {$product->stock}");
-                    } else {
-                        Log::warning("Product ID {$item['id']} not found.");
                     }
                 }
 
-                return response()->json(['status' => 'success']);
-            } catch (\Exception $e) {
-                Log::error('ERROR during sale creation (cash): ' . $e->getMessage());
-                Log::error($e->getTraceAsString());
+                DB::commit();
 
-                return response()->json(['error' => $e->getMessage()], 400);
+                // 3️⃣ Return the same view as paymentSuccess
+                return response()->json([
+                    'status'    => 'success',
+                    'message'   => 'Payment successful!',
+                    'order'     => $order,
+                    'items'     => $order->cart_items,
+                    'receiptUrl'=> route('receipt.download', ['id' => $order->id]),
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => $e->getMessage(),
+                ], 400);
             }
         }
 
-        return response()->json(['error' => 'Invalid payment method.'], 400);
+        return response()->json([
+            'status'  => 'error',
+            'message' => 'Invalid payment method.',
+        ], 400);
     }
 
     public function getSalesData(Request $request) {
@@ -116,7 +130,9 @@ class POSController extends Controller
             $query->whereDate('date', '<=', $request->end);
         }
 
-        $sales = $query->orderBy('date', 'desc')->get();
+        $sales = $query
+        ->orderBy('date', 'desc')
+        ->paginate(10);
 
         return response()->json($sales);
     }
@@ -204,5 +220,15 @@ class POSController extends Controller
                 'data' => $chartData
             ],
         ]);
+    }
+
+    public function showLogs() {
+        $logs = DB::table('logs')
+        ->join('users', 'logs.user_id', '=', 'users.id')
+        ->select('users.name', 'logs.time_in', 'logs.time_out')
+        ->orderBy('logs.id', 'desc')
+        ->get();
+
+        return view('pos.logs', compact('logs'));
     }
 }

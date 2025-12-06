@@ -10,8 +10,7 @@ class CategoryController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
+    public function index() {
         return Category::all();
     }
 
@@ -26,8 +25,7 @@ class CategoryController extends Controller
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
-    {
+    public function store(Request $request) {
         $validated = $request->validate([
         'name' => 'required|string|max:255',
     ]);
@@ -43,24 +41,21 @@ class CategoryController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Category $category)
-    {
+    public function show(Category $category) {
         //
     }
 
     /**
      * Show resource edit form.
      */
-    public function edit(Category $category)
-    {
+    public function edit(Category $category) {
         return view('category.edit', compact('category'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Category $category)
-    {
+    public function update(Request $request, Category $category) {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
         ]);
@@ -76,8 +71,7 @@ class CategoryController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(Category $category)
-    {
+    public function destroy(Category $category) {
         // Delete the category
         $category->delete();
 

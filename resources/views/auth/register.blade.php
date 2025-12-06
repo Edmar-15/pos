@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>POS System - Register</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
 </head>
 <body class="bg-linear-to-br from-blue-100 to-blue-300 flex items-center justify-center h-screen">
     <main class="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
@@ -65,5 +66,52 @@
             <a href="{{ route('show.login') }}" class="text-blue-600 font-semibold hover:underline">Login</a>
         </p>
     </main>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const nameInput = document.getElementById("name");
+            const emailInput = document.getElementById("email");
+            const passInput = document.getElementById("password");
+            const confirmInput = document.getElementById("password_confirmation");
+
+            const validators = {
+                name: value => value.trim().length > 0 ? "" : "Name is required.",
+                email: value => {
+                    if (!value) return "Email is required.";
+                    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                    return regex.test(value) ? "" : "Invalid email format.";
+                },
+                password: value => value.length >= 8 ? "" : "Password must be at least 8 characters.",
+                password_confirmation: (value) =>
+                    value === passInput.value ? "" : "Passwords do not match."
+            };
+
+            function showError(input, message) {
+                let existing = input.parentNode.querySelector(".error-text");
+                if (existing) existing.remove();
+
+                if (message) {
+                    input.classList.add("border-red-500");
+
+                    let small = document.createElement("small");
+                    small.classList.add("text-red-600", "error-text");
+                    small.innerText = message;
+                    input.parentNode.appendChild(small);
+                } else {
+                    input.classList.remove("border-red-500");
+                }
+            }
+
+            function validateInput(input) {
+                const name = input.name;
+                const message = validators[name](input.value);
+                showError(input, message);
+            }
+
+            [nameInput, emailInput, passInput, confirmInput].forEach(input => {
+                input.addEventListener("input", () => validateInput(input));
+            });
+
+        });
+    </script>
 </body>
 </html>

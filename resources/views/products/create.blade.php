@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Add Product</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 </head>
 <body class="flex h-screen bg-gray-100">
     <aside class="sidebar" id="sidebar">
@@ -28,6 +30,10 @@
             <a href="{{ route('pos.products') }}" class="menu-item active">
                 <span class="icon"><i class="bi bi-boxes"></i></span>
                 <span class="text">Products</span>
+            </a>
+            <a href="{{ route('show.logs') }}" class="menu-item">
+                <span class="icon"><i class="bi bi-clipboard"></i></span>
+                <span class="text">Logs</span>
             </a>
             <button class="menu-item w-full text-left" id="dropdown">
                 <span class="icon"><i class="bi bi-graph-down"></i></span>
@@ -151,11 +157,20 @@
     </main>
 
 <script>
-    document.getElementById('addProductForm').addEventListener('submit', function(e) {
+    const addForm = document.getElementById('addProductForm');
+    const submitBtn = addForm.querySelector('button[type="submit"]');
+
+    addForm.addEventListener('submit', function(e) {
         e.preventDefault();
 
-        let form = document.getElementById('addProductForm');
-        let formData = new FormData(form);
+        // Stop if already submitting
+        if (submitBtn.disabled) return;
+
+        const formData = new FormData(addForm);
+
+        // Disable button + show loading text
+        submitBtn.disabled = true;
+        submitBtn.innerText = "Adding...";
 
         fetch("{{ url('/api/products') }}", {
             method: 'POST',
@@ -173,13 +188,16 @@
         .catch(err => {
             console.error(err);
             alert('Error adding product. Please check your input.');
+
+            // Re-enable if error occurs
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Add Product";
         });
     });
 
     function preview(event) {
         const container = document.getElementById('imgContainer');
-
-        container.innerHTML = ""; // clear text
+        container.innerHTML = "";
 
         const img = document.createElement("img");
         img.src = URL.createObjectURL(event.target.files[0]);

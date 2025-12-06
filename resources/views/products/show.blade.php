@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Product | POS</title>
-    @vite('resources/css/app.css', 'resources/js/app.js')
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <link rel="shortcut icon" href="{{ asset('assets/image.png') }}" type="image/x-icon">
 </head>
 <body class="flex h-screen bg-gray-100">
     <aside class="sidebar" id="sidebar">
@@ -28,6 +29,10 @@
             <a href="{{ route('pos.products') }}" class="menu-item active">
                 <span class="icon"><i class="bi bi-boxes"></i></span>
                 <span class="text">Products</span>
+            </a>
+            <a href="{{ route('show.logs') }}" class="menu-item">
+                <span class="icon"><i class="bi bi-clipboard"></i></span>
+                <span class="text">Logs</span>
             </a>
             <button class="menu-item w-full text-left" id="dropdown">
                 <span class="icon"><i class="bi bi-graph-down"></i></span>

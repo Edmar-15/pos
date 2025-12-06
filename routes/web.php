@@ -5,14 +5,18 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\POSController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\PaymongoController;
+use App\Http\Controllers\OtpController;
 use Illuminate\Support\Facades\Route;
 use App\Models\Order;
+use App\Http\Controllers\ForgotPasswordController;
+use App\Http\Controllers\ResetPasswordController;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 Route::get('/', [POSController::class, 'showPOS']);
 Route::get('/pos/category/{id}/products', [POSController::class, 'getProductsByCategory']);
 Route::post('/pos/complete-order', [POSController::class, 'completeOrder']);
-// PAYMONGO CHECKOUT
+
+// Paymongo Checkout
 Route::post('/pos/paymongo/create-checkout', [PaymongoController::class, 'createCheckout']);
 Route::get('/pos/paymongo/check-status/{checkoutId}', [PaymongoController::class, 'checkStatus']);
 Route::post('/pos/paymongo/finalize/{checkoutId}', [PaymongoController::class, 'finalizePaidOrder']);
@@ -23,13 +27,28 @@ Route::get('/orders/{id}/receipt', function ($id) {
 
     $items = $order->cart_items;
 
+    if (!is_array($items)) {
+        $items = [];
+    }
+
     $pdf = Pdf::loadView('receipt.pdf', [
         'order' => $order,
         'items' => $items,
-    ])->name('receipt.download');
+    ]);
 
     return $pdf->download('receipt-'.$order->id.'.pdf');
-});
+})->name('receipt.download');
+
+// OTP Route
+Route::get('/otp', [OtpController::class, 'showOtpForm'])->name('otp.verify.form');
+Route::post('/otp', [OtpController::class, 'verifyOtp'])->name('otp.verify');
+
+// Reset Pass Route
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLink'])->name('password.email');
+
+Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ResetPasswordController::class, 'resetPassword'])->name('password.update');
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
@@ -59,4 +78,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/product/create', [ProductController::class, 'create'])->name('show.create.product');
     Route::get('/products/show/{product}', [ProductController::class, 'showPage'])->name('products.showPage');
     Route::get('/products/{product}/edit', [ProductController::class, 'editPage'])->name('products.editPage');
+
+    Route::get('/logs', [POSController::class, 'showLogs'])->name('show.logs');
 });
