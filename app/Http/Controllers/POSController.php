@@ -66,7 +66,7 @@ class POSController extends Controller
         if ($paymentMethod === 'cash') {
             DB::beginTransaction();
             try {
-                // 1️⃣ Create the order
+                // Create the order
                 $order = Order::create([
                     'cart_items'     => $cart, // store as array, ensure $casts in Order model: 'cart_items' => 'array'
                     'status'         => 'paid',
@@ -75,10 +75,10 @@ class POSController extends Controller
                     'checkout_id'    => 'CASH-' . Str::upper(Str::random(8)), // fake checkout ID for cash
                 ]);
 
-                // 2️⃣ Insert sales and update stock
+                // Insert sales and update stock
                 foreach ($cart as $item) {
                     Sale::create([
-                        'ordernumber' => Str::upper(Str::random(10)),
+                        'ordernumber' => 'ORD-' . strtoupper(Str::uuid()),
                         'productname' => $item['name'],
                         'price'       => $item['sell_price'],
                         'instock'     => $item['stock'],
@@ -95,7 +95,7 @@ class POSController extends Controller
 
                 DB::commit();
 
-                // 3️⃣ Return the same view as paymentSuccess
+                // Return the same view as paymentSuccess
                 return response()->json([
                     'status'    => 'success',
                     'message'   => 'Payment successful!',
