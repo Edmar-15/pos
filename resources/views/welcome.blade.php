@@ -89,147 +89,163 @@
                 Complete Order
             </button>
         </div>
-
     </main>
 
+    <!-- Cash Payment Modal with Blur -->
+    <div id="cash-modal" class="fixed inset-0 flex items-center justify-center hidden z-50">
+        <!-- Backdrop Blur -->
+        <div class="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="bg-white rounded-xl p-6 w-80 flex flex-col gap-4 relative z-10">
+            <h3 class="text-lg font-bold">Enter Cash Amount</h3>
+            <input type="number" id="cash-amount" placeholder="Php 0" class="w-full p-2 border rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" min="0" />
+            <p id="cash-change" class="text-green-600 font-semibold hidden">Change: Php 0</p>
+            <div class="flex justify-end gap-2">
+                <button id="cancel-cash" class="px-4 py-2 bg-gray-300 rounded-lg hover:bg-gray-400">Cancel</button>
+                <button id="confirm-cash" class="px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700">Confirm</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const searchBar = document.getElementById('search-bar');
-            const categoryTiles = document.getElementById('category-tiles');
-            const productGrid = document.getElementById('product-grid');
-            const backBtn = document.getElementById('back-to-categories');
-            const cartItemsDiv = document.getElementById('cart-items');
-            const subtotalEl = document.getElementById('subtotal');
-            const taxEl = document.getElementById('tax');
-            const totalEl = document.getElementById('total');
-            const paymentMethod = document.getElementById('payment-method');
-            const completeBtn = document.getElementById('complete-order-btn');
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchBar = document.getElementById('search-bar');
+        const categoryTiles = document.getElementById('category-tiles');
+        const productGrid = document.getElementById('product-grid');
+        const backBtn = document.getElementById('back-to-categories');
+        const cartItemsDiv = document.getElementById('cart-items');
+        const subtotalEl = document.getElementById('subtotal');
+        const taxEl = document.getElementById('tax');
+        const totalEl = document.getElementById('total');
+        const paymentMethod = document.getElementById('payment-method');
+        const completeBtn = document.getElementById('complete-order-btn');
 
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-            const baseUrl = "{{ url('/') }}";
-            const cart = {};
-            let currentProducts = [];
-            let selectedCategoryId = null;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        const baseUrl = "{{ url('/') }}";
+        const cart = {};
+        let currentProducts = [];
+        let selectedCategoryId = null;
 
-            function renderCart() {
-                cartItemsDiv.innerHTML = '';
-                let subtotal = 0;
+        function renderCart() {
+            cartItemsDiv.innerHTML = '';
+            let subtotal = 0;
 
-                Object.values(cart).forEach(item => {
-                    const div = document.createElement('div');
-                    div.className = "flex items-center justify-between border border-blue-600 bg-white/10 p-3 rounded-lg";
+            Object.values(cart).forEach(item => {
+                const div = document.createElement('div');
+                div.className = "flex items-center justify-between border border-blue-600 bg-white/10 p-3 rounded-lg";
 
-                    div.innerHTML = `
-                        <div>
-                            <p class="font-medium">${item.name}</p>
-                            <p class="text-sm">Php ${item.sell_price}</p>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button class="bg-sky-600 px-2 rounded quantity-btn" data-id="${item.id}" data-action="add">+</button>
-                            <span>${item.quantity}</span>
-                            <button class="bg-sky-600 px-2 rounded quantity-btn" data-id="${item.id}" data-action="subtract">-</button>
-                            <button class="bg-red-500 px-2 rounded text-white font-bold delete-btn" data-id="${item.id}">D</button>
-                        </div>
-                    `;
-                    cartItemsDiv.appendChild(div);
-                    subtotal += item.sell_price * item.quantity;
-                });
-
-                const tax = Math.round(subtotal * 0.1);
-                const total = subtotal + tax;
-
-                subtotalEl.innerText = `Subtotal: Php ${subtotal}`;
-                taxEl.innerText = `Tax: 10% (Php ${tax})`;
-                totalEl.innerText = `Total: Php ${total}`;
-
-                document.querySelectorAll('.quantity-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const id = btn.dataset.id;
-                        const action = btn.dataset.action;
-                        if (action === 'add') cart[id].quantity++;
-                        if (action === 'subtract' && cart[id].quantity > 1) cart[id].quantity--;
-                        renderCart();
-                    });
-                });
-
-                document.querySelectorAll('.delete-btn').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const id = btn.dataset.id;
-                        delete cart[id];
-                        renderCart();
-                    });
-                });
-            }
-
-            function selectCategory(tile, categoryId) {
-                selectedCategoryId = categoryId;
-                categoryTiles.style.display = 'none';
-                backBtn.style.display = 'block';
-                productGrid.style.display = 'grid';
-
-                fetch(`${baseUrl}/pos/category/${categoryId}/products`)
-                    .then(res => res.json())
-                    .then(products => {
-                        currentProducts = products;
-                        renderProducts(products);
-                    })
-                    .catch(err => console.error(err));
-            }
-
-            function renderProducts(products) {
-                productGrid.innerHTML = '';
-                products.forEach(p => {
-                    const div = document.createElement('div');
-                    div.className = "bg-white border border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition";
-
-                    const imageUrl = p.image ? `${baseUrl}/storage/${p.image}` : '';
-                    div.innerHTML = `
-                        <div class="bg-gray-200 w-full h-24 mb-2 flex items-center justify-center rounded overflow-hidden">
-                            ${imageUrl ? `<img src="${imageUrl}" class="w-full h-full object-contain"/>` : `<span class="text-gray-400 text-sm">No Image</span>`}
-                        </div>
-                        <p class="font-medium">${p.name}</p>
-                        <p class="text-sm">Php ${p.sell_price}</p>
-                        <p class="text-xs text-gray-500">Stock: ${p.stock}</p>
-                    `;
-
-                    div.addEventListener('click', () => {
-                        if (cart[p.id]) cart[p.id].quantity++;
-                        else cart[p.id] = {...p, quantity:1};
-                        renderCart();
-                    });
-
-                    productGrid.appendChild(div);
-                });
-            }
-
-            categoryTiles.querySelectorAll('.category-tile').forEach(tile => {
-                tile.addEventListener('click', () => selectCategory(tile, tile.dataset.id));
+                div.innerHTML = `
+                    <div>
+                        <p class="font-medium">${item.name}</p>
+                        <p class="text-sm">Php ${item.sell_price}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="bg-sky-600 px-2 rounded quantity-btn" data-id="${item.id}" data-action="add">+</button>
+                        <span>${item.quantity}</span>
+                        <button class="bg-sky-600 px-2 rounded quantity-btn" data-id="${item.id}" data-action="subtract">-</button>
+                        <button class="bg-red-500 px-2 rounded text-white font-bold delete-btn" data-id="${item.id}">D</button>
+                    </div>
+                `;
+                cartItemsDiv.appendChild(div);
+                subtotal += item.sell_price * item.quantity;
             });
 
-            backBtn.addEventListener('click', function() {
-                selectedCategoryId = null;
-                productGrid.style.display = 'none';
-                categoryTiles.style.display = 'grid';
-                backBtn.style.display = 'none';
-                searchBar.value = '';
+            const tax = Math.round(subtotal * 0.1);
+            const total = subtotal + tax;
+
+            subtotalEl.innerText = `Subtotal: Php ${subtotal}`;
+            taxEl.innerText = `Tax: 10% (Php ${tax})`;
+            totalEl.innerText = `Total: Php ${total}`;
+
+            document.querySelectorAll('.quantity-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    const action = btn.dataset.action;
+                    if (action === 'add') cart[id].quantity++;
+                    if (action === 'subtract' && cart[id].quantity > 1) cart[id].quantity--;
+                    renderCart();
+                });
             });
 
-            searchBar.addEventListener('input', function() {
-                const query = this.value.toLowerCase();
-
-                if (selectedCategoryId) {
-                    const filtered = currentProducts.filter(p => p.name.toLowerCase().includes(query));
-                    renderProducts(filtered);
-                } else {
-                    categoryTiles.querySelectorAll('.category-tile').forEach(tile => {
-                        tile.style.display = tile.innerText.toLowerCase().includes(query) ? 'flex' : 'none';
-                    });
-                }
+            document.querySelectorAll('.delete-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.id;
+                    delete cart[id];
+                    renderCart();
+                });
             });
+        }
 
-            completeBtn.addEventListener('click', () => {
+        function selectCategory(tile, categoryId) {
+            selectedCategoryId = categoryId;
+            categoryTiles.style.display = 'none';
+            backBtn.style.display = 'block';
+            productGrid.style.display = 'grid';
+
+            fetch(`${baseUrl}/pos/category/${categoryId}/products`)
+                .then(res => res.json())
+                .then(products => {
+                    currentProducts = products;
+                    renderProducts(products);
+                })
+                .catch(err => console.error(err));
+        }
+
+        function renderProducts(products) {
+            productGrid.innerHTML = '';
+            products.forEach(p => {
+                const div = document.createElement('div');
+                div.className = "bg-white border border-gray-300 rounded-lg p-4 flex flex-col items-center justify-center cursor-pointer hover:bg-blue-50 transition";
+
+                const imageUrl = p.image ? `${baseUrl}/storage/${p.image}` : '';
+                div.innerHTML = `
+                    <div class="bg-gray-200 w-full h-24 mb-2 flex items-center justify-center rounded overflow-hidden">
+                        ${imageUrl ? `<img src="${imageUrl}" class="w-full h-full object-contain"/>` : `<span class="text-gray-400 text-sm">No Image</span>`}
+                    </div>
+                    <p class="font-medium">${p.name}</p>
+                    <p class="text-sm">Php ${p.sell_price}</p>
+                    <p class="text-xs text-gray-500">Stock: ${p.stock}</p>
+                `;
+
+                div.addEventListener('click', () => {
+                    if (cart[p.id]) cart[p.id].quantity++;
+                    else cart[p.id] = {...p, quantity:1};
+                    renderCart();
+                });
+
+                productGrid.appendChild(div);
+            });
+        }
+
+        categoryTiles.querySelectorAll('.category-tile').forEach(tile => {
+            tile.addEventListener('click', () => selectCategory(tile, tile.dataset.id));
+        });
+
+        backBtn.addEventListener('click', function() {
+            selectedCategoryId = null;
+            productGrid.style.display = 'none';
+            categoryTiles.style.display = 'grid';
+            backBtn.style.display = 'none';
+            searchBar.value = '';
+        });
+
+        searchBar.addEventListener('input', function() {
+            const query = this.value.toLowerCase();
+
+            if (selectedCategoryId) {
+                const filtered = currentProducts.filter(p => p.name.toLowerCase().includes(query));
+                renderProducts(filtered);
+            } else {
+                categoryTiles.querySelectorAll('.category-tile').forEach(tile => {
+                    tile.style.display = tile.innerText.toLowerCase().includes(query) ? 'flex' : 'none';
+                });
+            }
+        });
+
+        completeBtn.addEventListener('click', () => {
             if (Object.keys(cart).length === 0) return alert("Cart is empty!");
-
+            
             const cartArray = Object.values(cart).map(item => ({
                 id: item.id,
                 name: item.name,
@@ -244,41 +260,72 @@
             };
 
             if (paymentMethod.value === 'cash') {
-                fetch(`${baseUrl}/pos/complete-order`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alert('Order completed successfully!');
+                const cashModal = document.getElementById('cash-modal');
+                const cashInput = document.getElementById('cash-amount');
+                const cancelBtn = document.getElementById('cancel-cash');
+                const confirmBtn = document.getElementById('confirm-cash');
+                const changeEl = document.getElementById('cash-change');
 
-                        // Open receipt in new tab
-                        if (data.receiptUrl) {
-                            window.open(data.receiptUrl, '_blank');
-                        }
+                cashInput.value = '';
+                changeEl.classList.add('hidden');
+                cashModal.classList.remove('hidden');
 
-                        // Clear cart
-                        Object.keys(cart).forEach(k => delete cart[k]);
-                        renderCart();
-
-                        productGrid.style.display = 'none';
-                        categoryTiles.style.display = 'grid';
-                        backBtn.style.display = 'none';
-                        searchBar.value = '';
+                // Show change as cashier types
+                cashInput.oninput = () => {
+                    const cashAmount = parseFloat(cashInput.value);
+                    const totalAmount = parseFloat(totalEl.innerText.replace(/[^0-9]/g, ''));
+                    if (!isNaN(cashAmount) && cashAmount >= totalAmount) {
+                        changeEl.innerText = `Change: Php ${cashAmount - totalAmount}`;
+                        changeEl.classList.remove('hidden');
                     } else {
-                        alert('Error completing order: ' + (data.error || 'Unknown'));
+                        changeEl.classList.add('hidden');
                     }
-                })
-                .catch(err => alert("Error: " + err.message));
+                };
+
+                cancelBtn.onclick = () => cashModal.classList.add('hidden');
+
+                confirmBtn.onclick = () => {
+                    const cashAmount = parseFloat(cashInput.value);
+                    const totalAmount = parseFloat(totalEl.innerText.replace(/[^0-9]/g, ''));
+                    if (isNaN(cashAmount) || cashAmount < totalAmount) {
+                        return alert("Cash amount must be at least the total!");
+                    }
+
+                    const change = cashAmount - totalAmount;
+                    alert(`Payment accepted. Change to give: Php ${change}`);
+
+                    cashModal.classList.add('hidden');
+                    payload.cash_received = cashAmount;
+
+                    fetch(`${baseUrl}/pos/complete-order`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            if (data.receiptUrl) window.open(data.receiptUrl, '_blank');
+                            Object.keys(cart).forEach(k => delete cart[k]);
+                            renderCart();
+                            productGrid.style.display = 'none';
+                            categoryTiles.style.display = 'grid';
+                            backBtn.style.display = 'none';
+                            searchBar.value = '';
+                        } else {
+                            alert('Error completing order: ' + (data.error || 'Unknown'));
+                        }
+                    })
+                    .catch(err => alert("Error: " + err.message));
+                };
 
                 return;
             }
 
+            // PayMongo payment
             fetch(`${baseUrl}/pos/paymongo/create-checkout`, {
                 method: 'POST',
                 headers: {
@@ -295,7 +342,6 @@
                 }
 
                 window.open(data.checkout_url, "_blank");
-
                 pollPayment(data.checkout_id);
             });
         });
@@ -305,11 +351,8 @@
                 fetch(`${baseUrl}/pos/paymongo/check-status/${checkoutId}`)
                     .then(res => res.json())
                     .then(data => {
-                        console.log("Polling status:", data.status);
-
                         if (data.status === 'succeeded') {
                             clearInterval(interval);
-
                             fetch(`${baseUrl}/pos/paymongo/finalize/${checkoutId}`, {
                                 method: 'POST',
                                 headers: {
@@ -320,7 +363,6 @@
                             .then(res => res.json())
                             .then(finalizeData => {
                                 alert(finalizeData.message || "Order finalized!");
-                                
                                 Object.keys(cart).forEach(k => delete cart[k]);
                                 renderCart();
                                 productGrid.style.display = 'none';
@@ -330,7 +372,6 @@
                             })
                             .catch(err => console.error("Finalize error:", err));
                         }
-
                         if (data.status === 'failed' || data.status === 'expired') {
                             clearInterval(interval);
                             alert("Payment failed or expired");
@@ -340,7 +381,6 @@
                         clearInterval(interval);
                         console.error("Polling error", err);
                     });
-
             }, 3000);
         }
 
